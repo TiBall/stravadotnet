@@ -18,6 +18,7 @@ using Windows.UI.Xaml.Navigation;
 using com.strava.api.Athletes;
 using com.strava.api.Authentication;
 using com.strava.api.Client;
+using StravaWpTest.Common;
 
 namespace StravaWpTest
 {
@@ -31,22 +32,14 @@ namespace StravaWpTest
             this.InitializeComponent();
         }
 
-        #region Strava Values
-
-        private const string CLIENT_ID = "1234";
-        private const string CLIENT_SECRET = "c85a412345432562c2c4c81130fb392ae06";
-        private const string CALLBACK_URI = "http://mycallbackdomainthatreturnsanyvalidpage.com";
-
-        #endregion
 
         private async void ConnectToStravaClick(object s, RoutedEventArgs e)
         {
-            var auth = new WebAuthentication();
-            auth.AuthCodeReceived += (sender, args) => WriteLine("Auth Code: " + args.AuthCode);
-            auth.AccessTokenReceived += (sender, args) => WriteLine("Access Token: " + args.Token);
+            StravaLoginHelper.StravaAuth.AuthCodeReceived += (sender, args) => WriteLine("Auth Code: " + args.AuthCode);
+            StravaLoginHelper.StravaAuth.AccessTokenReceived += (sender, args) => WriteLine("Access Token: " + args.Token);
             try
             {
-                await auth.GetTokenAsync(CLIENT_ID, CLIENT_SECRET, CALLBACK_URI);
+                await StravaLoginHelper.StravaAuth.GetTokenAsync(StravaLoginHelper.CLIENT_ID, StravaLoginHelper.CLIENT_SECRET, StravaLoginHelper.CALLBACK_URI);
             }
             catch (Exception ex)
             {
@@ -55,7 +48,7 @@ namespace StravaWpTest
 
             // You can either use the StravaClient or 'single' clients like the ActivityClient.
             // The StravaClient offers predefined clients.            
-            var client = new StravaClient(auth);
+            var client = new StravaClient(StravaLoginHelper.StravaAuth);
 
             try
             {

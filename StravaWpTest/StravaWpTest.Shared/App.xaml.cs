@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
@@ -25,8 +26,10 @@ namespace StravaWpTest
     /// </summary>
     public sealed partial class App : Application
     {
+
 #if WINDOWS_PHONE_APP
         private TransitionCollection transitions;
+        private ContinuationManager continuationManager;
 #endif
 
         /// <summary>
@@ -45,7 +48,7 @@ namespace StravaWpTest
         /// search results, and so forth.
         /// </summary>
         /// <param name="e">Details about the launch request and process.</param>
-        protected override void OnLaunched(LaunchActivatedEventArgs e)
+        protected override async void OnLaunched(LaunchActivatedEventArgs e)
         {
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached)
@@ -54,26 +57,12 @@ namespace StravaWpTest
             }
 #endif
 
-            Frame rootFrame = Window.Current.Content as Frame;
+            Frame rootFrame = CreateRootFrame();
 
-            // Do not repeat app initialization when the Window already has content,
-            // just ensure that the window is active
-            if (rootFrame == null)
-            {
-                // Create a Frame to act as the navigation context and navigate to the first page
-                rootFrame = new Frame();
+            // TODO: change this value to a cache size that is appropriate for your application
+            rootFrame.CacheSize = 1;
 
-                // TODO: change this value to a cache size that is appropriate for your application
-                rootFrame.CacheSize = 1;
-
-                if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
-                {
-                    // TODO: Load state from previously suspended application
-                }
-
-                // Place the frame in the current Window
-                Window.Current.Content = rootFrame;
-            }
+            await RestoreStatusAsync(e.PreviousExecutionState);
 
             if (rootFrame.Content == null)
             {
@@ -105,6 +94,42 @@ namespace StravaWpTest
             Window.Current.Activate();
         }
 
+        private Frame CreateRootFrame()
+        {
+            Frame rootFrame = Window.Current.Content as Frame;
+
+            // Do not repeat app initialization when the Window already has content,
+            // just ensure that the window is active
+            if (rootFrame == null)
+            {
+                // Create a Frame to act as the navigation context and navigate to the first page
+                rootFrame = new Frame();
+                
+                // Place the frame in the current Window
+                Window.Current.Content = rootFrame;
+            }
+            return rootFrame;
+        }
+
+        private async Task RestoreStatusAsync(ApplicationExecutionState previousExecutionState)
+        {
+            // Do not repeat app initialization when the Window already has content,
+            // just ensure that the window is active
+            if (previousExecutionState == ApplicationExecutionState.Terminated)
+            {
+                // Restore the saved session state only when appropriate
+                //try
+                //{
+                //    await SuspensionManager.RestoreAsync();
+                //}
+                //catch (SuspensionManagerException)
+                //{
+                //    //Something went wrong restoring state.
+                //    //Assume there is no state and continue
+                //}
+            }
+        }
+
 #if WINDOWS_PHONE_APP
         /// <summary>
         /// Restores the content transitions after the app has launched.
@@ -116,6 +141,43 @@ namespace StravaWpTest
             var rootFrame = sender as Frame;
             rootFrame.ContentTransitions = this.transitions ?? new TransitionCollection() { new NavigationThemeTransition() };
             rootFrame.Navigated -= this.RootFrame_FirstNavigated;
+        }
+#endif
+
+
+#if WINDOWS_PHONE_APP
+        /// <summary>
+        /// Handle OnActivated event to deal with File Open/Save continuation activation kinds
+        /// </summary>
+        /// <param name="e">Application activated event arguments, it can be casted to proper sub-type based on ActivationKind</param>
+        protected async override void OnActivated(IActivatedEventArgs e)
+        {
+            base.OnActivated(e);
+
+            continuationManager = new ContinuationManager();
+
+            Frame rootFrame = CreateRootFrame();
+            await RestoreStatusAsync(e.PreviousExecutionState);
+
+            if (rootFrame.Content == null)
+            {
+                rootFrame.Navigate(typeof(MainPage));
+            }
+
+            var continuationEventArgs = e as IContinuationActivatedEventArgs;
+            if (continuationEventArgs != null)
+            {
+                continuationManager.Continue(continuationEventArgs, rootFrame);
+
+                //Frame scenarioFrame = MainPage.Current.FindName("ScenarioFrame") as Frame;
+                //if (scenarioFrame != null)
+                //{
+                //    // Call ContinuationManager to handle continuation activation
+                //    continuationManager.Continue(continuationEventArgs, scenarioFrame);
+                //}
+            }
+
+            Window.Current.Activate();
         }
 #endif
 

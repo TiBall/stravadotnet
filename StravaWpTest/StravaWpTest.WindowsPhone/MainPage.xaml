@@ -9,6 +9,17 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <Button HorizontalAlignment="Center"
+                Click="LoginClick">Login with strava</Button>
 
+        <Button Grid.Row="1" 
+                x:Name="ShowActivitesBtn"
+                HorizontalAlignment="Center"
+                IsEnabled="False"
+                Click="ShowActivitesClick">Show Activity Feed</Button>
     </Grid>
 </Page>

@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Windows.Security.Authentication.Web;
 using com.strava.api.Common;
-using com.strava.api.Http;
+using WebRequest = com.strava.api.Http.WebRequest;
 
 namespace com.strava.api.Authentication
 {
@@ -13,6 +14,9 @@ namespace com.strava.api.Authentication
     /// </summary>
     public class WebAuthentication : IAuthentication
     {
+        private string _clientId;
+        private string _accessToken;
+
         /// <summary>
         /// AccessTokenReceived is raised when an access token is received from the Strava server.
         /// </summary>
@@ -23,34 +27,58 @@ namespace com.strava.api.Authentication
         /// </summary>
         public event EventHandler<AuthCodeReceivedEventArgs> AuthCodeReceived;
 
+
+        private const string ACCESSTOKEN_KEY = "AccessToken";
+
         /// <summary>
         /// The access token that was received from the Strava server.
         /// </summary>
-        public string AccessToken { get; set; }
-
-        /// <summary>
-        /// the auth token that was received from the Strava server.
-        /// </summary>
-        public String AuthCode { get; set; }
+        public string AccessToken
+        {
+            get
+            {
+                return _accessToken ??
+                 (_accessToken = (String)Windows.Storage.ApplicationData.Current.RoamingSettings.Values[ACCESSTOKEN_KEY]);                
+            }
+            set 
+            {
+                if (_accessToken != value)
+                {
+                    _accessToken = value;
+                    Windows.Storage.ApplicationData.Current.RoamingSettings.Values[ACCESSTOKEN_KEY] = value;
+                } 
+            }
+        }
+        
+        private const string CLIENTID_KEY = "clientId";
 
         /// <summary>
         /// The Client Id provided by Strava upon registering your application.
         /// </summary>
-        public String ClientId { get; set; }
+        public String ClientId
+        {
+            get
+            {
+                return _clientId ??
+                    (_clientId = (String)Windows.Storage.ApplicationData.Current.RoamingSettings.Values[CLIENTID_KEY]);
+            }
+            set
+            {
+                if (_clientId != value)
+                {
+                    _clientId = value;                    
+                    Windows.Storage.ApplicationData.Current.RoamingSettings.Values[CLIENTID_KEY] = value;
+                }
+            }
+        }
 
         /// <summary>
         /// The Client secret provided by Strava upon registering your application.
         /// </summary>
         public String ClientSecret { get; set; }
 
-        /// <summary>
-        /// Loads an access token asynchronously from the Strava servers. Invoking this method opens a web browser.
-        /// </summary>
-        /// <param name="clientId">The client id from your application (provided by Strava).</param>
-        /// <param name="clientSecret">The client secret (provided by Strava).</param>
-        /// <param name="callbackUri">the callback uri exactly as provided with the strava app registration</param>
-        /// <param name="scope">Define what your application is allowed to do.</param>
-        public async Task GetTokenAsync(String clientId, String clientSecret, string callbackUri, Scope scope = Scope.Full)
+        public string BuildStravaTokenUrl(String clientId, string clientSecret, string callbackUri,
+            Scope scope = Scope.Full)
         {
             ClientId = clientId;
 
@@ -72,20 +100,29 @@ namespace com.strava.api.Authentication
                 case Scope.Write:
                     scopeLevel = "write";
                     break;
-            } 
+            }
 
-            string stravaUrl = "https://www.strava.com/oauth/authorize"+
-                "?client_id=" + clientId +
-                "&response_type=code" +
-                "&redirect_uri=" + callbackUri +
-                "&scope=" + scopeLevel +
-                "&state=private" +
-                "&approval_prompt=auto";
+            return String.Format("https://"+"www.strava.com/oauth/authorize?client_id={0}&response_type=code&redirect_uri={1}&scope={2}&state=private&approval_prompt=auto",
+                clientId,callbackUri,scopeLevel);
+        }
+
+
+        /// <summary>
+        /// Loads an access token asynchronously from the Strava servers. Invoking this method opens a web browser.
+        /// </summary>
+        /// <param name="clientId">The client id from your application (provided by Strava).</param>
+        /// <param name="clientSecret">The client secret (provided by Strava).</param>
+        /// <param name="callbackUri">the callback uri exactly as provided with the strava app registration</param>
+        /// <param name="scope">Define what your application is allowed to do.</param>
+        public async Task GetTokenAsync(string clientId, string clientSecret, string callbackUri, Scope scope = Scope.Full)
+        {
+            string stravaUrl = BuildStravaTokenUrl(clientId, clientSecret, callbackUri, scope);
+
             var startUri = new Uri(stravaUrl);
             var endUri = new Uri(callbackUri);
 
 //#if WINDOWS_PHONE_APP
-//                WebAuthenticationBroker.AuthenticateAndContinue(StartUri, EndUri, null, WebAuthenticationOptions.None);
+                //WebAuthenticationBroker.AuthenticateAndContinue(StartUri, EndUri, null, WebAuthenticationOptions.None);
 //#else
             WebAuthenticationResult webAuthenticationResult = await WebAuthenticationBroker.AuthenticateAsync(
                                                     WebAuthenticationOptions.None,
@@ -93,30 +130,31 @@ namespace com.strava.api.Authentication
                                                     endUri);
             if (webAuthenticationResult.ResponseStatus == WebAuthenticationStatus.Success)
             {
-                await GetStravaTokenAsync(webAuthenticationResult.ResponseData);
+                await ContinueGettingTokenWithTempCodeAsync(webAuthenticationResult.ResponseData);
             }
             else if (webAuthenticationResult.ResponseStatus == WebAuthenticationStatus.ErrorHttp)
             {
-                //OutputToken("HTTP Error returned by AuthenticateAsync() : " + WebAuthenticationResult.ResponseErrorDetail.ToString());
+                throw new HttpRequestException("HTTP Error returned by AuthenticateAsync() : " + webAuthenticationResult.ResponseErrorDetail);
             }
             else
             {
-                //OutputToken("Error returned by AuthenticateAsync() : " + WebAuthenticationResult.ResponseStatus.ToString());
-            }     
-//#endif
+                throw new HttpRequestException("Error returned by AuthenticateAsync() : " + webAuthenticationResult.ResponseStatus);
+            }    
         }
-
-        private async Task GetStravaTokenAsync(string responseWithCode)
+        
+        /// <summary>
+        /// After receiving the temporary code, this method continues authentication with strava to receive the token
+        /// On Windows Phone you have to call this method after the app is resumed with WebAuthentificationBroikerEventArgs
+        /// On WIndows, this is called automatically when calling GetTokenAsync
+        /// </summary>
+        /// <param name="responseWithCode">The cesponse string containing the tempporary code</param>
+        public async Task ContinueGettingTokenWithTempCodeAsync(string responseWithCode)
         {
             string code = responseWithCode.Substring(responseWithCode.IndexOf("code=") + "code=".Length);
-
-
-            //TODO: Save code to Storage
-
+            
             if (AuthCodeReceived != null)
             {
-                AuthCodeReceived(this, new AuthCodeReceivedEventArgs(code));
-                AuthCode = code;
+                AuthCodeReceived(this, new AuthCodeReceivedEventArgs(code));                
             }
 
             
@@ -126,10 +164,11 @@ namespace com.strava.api.Authentication
             String json = await WebRequest.SendPostAsync(new Uri(url));
             AccessToken auth = Unmarshaller<AccessToken>.Unmarshal(json);
 
+            AccessToken = auth.Token;
+
             if (AccessTokenReceived != null)
-            {
-                AccessTokenReceived(this, new TokenReceivedEventArgs(auth.Token));
-                AccessToken = auth.Token;
+            {                
+                AccessTokenReceived(this, new TokenReceivedEventArgs(auth.Token));                
             }
         }
     }
