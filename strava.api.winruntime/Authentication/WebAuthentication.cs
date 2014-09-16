@@ -49,7 +49,7 @@ namespace com.strava.api.Authentication
         /// <param name="clientId">The client id from your application (provided by Strava).</param>
         /// <param name="clientSecret">The client secret (provided by Strava).</param>
         /// <param name="scope">Define what your application is allowed to do.</param>
-        public async Task GetTokenAsync(String clientId = "3005", String clientSecret = "c85a4d476f0b5391c9d62c2c4c81130fb392ae06", Scope scope = Scope.Full)
+        public async Task GetTokenAsync(String clientId, String clientSecret, Scope scope = Scope.Full)
         {
             ClientId = clientId;
 
@@ -76,7 +76,9 @@ namespace com.strava.api.Authentication
                     break;
             } 
 
-            string StravaUrl = "https://www.strava.com/oauth/authorize?client_id=3005&response_type=code" + 
+            string StravaUrl = "https://www.strava.com/oauth/authorize"+
+                "?client_id=" + clientId +
+                "&response_type=code" + 
                 "&redirect_uri="+ stravaCallbackuri +
                 "&scope=" + scopeLevel +
                 "&state=private" +
@@ -102,7 +104,8 @@ namespace com.strava.api.Authentication
             else
             {
                 //OutputToken("Error returned by AuthenticateAsync() : " + WebAuthenticationResult.ResponseStatus.ToString());
-            }            
+            }     
+//#endif
         }
 
         private async Task GetStravaTokenAsync(string responseWithCode)

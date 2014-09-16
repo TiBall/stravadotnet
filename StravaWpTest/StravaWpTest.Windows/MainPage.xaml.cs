@@ -44,7 +44,7 @@ namespace StravaWpTest
             };
             try
             {
-                await auth.GetTokenAsync();
+                await auth.GetTokenAsync("1234","1234567890abcdefghijklmnopq");
             }
             catch (Exception ex)
             {
