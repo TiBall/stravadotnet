@@ -48,15 +48,13 @@ namespace com.strava.api.Authentication
         /// </summary>
         /// <param name="clientId">The client id from your application (provided by Strava).</param>
         /// <param name="clientSecret">The client secret (provided by Strava).</param>
+        /// <param name="callbackUri">the callback uri exactly as provided with the strava app registration</param>
         /// <param name="scope">Define what your application is allowed to do.</param>
-        public async Task GetTokenAsync(String clientId, String clientSecret, Scope scope = Scope.Full)
+        public async Task GetTokenAsync(String clientId, String clientSecret, string callbackUri, Scope scope = Scope.Full)
         {
             ClientId = clientId;
 
             ClientSecret = clientSecret;
-
-
-            string stravaCallbackuri = "http://team2b.ballendat.com";
 
             String scopeLevel = String.Empty;
 
@@ -76,15 +74,15 @@ namespace com.strava.api.Authentication
                     break;
             } 
 
-            string StravaUrl = "https://www.strava.com/oauth/authorize"+
+            string stravaUrl = "https://www.strava.com/oauth/authorize"+
                 "?client_id=" + clientId +
-                "&response_type=code" + 
-                "&redirect_uri="+ stravaCallbackuri +
+                "&response_type=code" +
+                "&redirect_uri=" + callbackUri +
                 "&scope=" + scopeLevel +
                 "&state=private" +
                 "&approval_prompt=auto";
-            var startUri = new Uri(StravaUrl);
-            var endUri = new Uri(stravaCallbackuri);
+            var startUri = new Uri(stravaUrl);
+            var endUri = new Uri(callbackUri);
 
 //#if WINDOWS_PHONE_APP
 //                WebAuthenticationBroker.AuthenticateAndContinue(StartUri, EndUri, null, WebAuthenticationOptions.None);
@@ -110,7 +108,7 @@ namespace com.strava.api.Authentication
 
         private async Task GetStravaTokenAsync(string responseWithCode)
         {
-            string code = responseWithCode.Substring(responseWithCode.IndexOf("code=") + "code0".Length);
+            string code = responseWithCode.Substring(responseWithCode.IndexOf("code=") + "code=".Length);
 
 
             //TODO: Save code to Storage

@@ -31,24 +31,26 @@ namespace StravaWpTest
             this.InitializeComponent();
         }
 
+        #region Strava Values
+
+        private const string CLIENT_ID = "1234";
+        private const string CLIENT_SECRET = "c85a412345432562c2c4c81130fb392ae06";
+        private const string CALLBACK_URI = "http://mycallbackdomainthatreturnsanyvalidpage.com";
+
+        #endregion
+
         private async void ConnectToStravaClick(object s, RoutedEventArgs e)
         {
-            WebAuthentication auth = new WebAuthentication();
-            auth.AuthCodeReceived += (sender, args) =>
-            {
-                Output.Text += "Auth Code: " + args.AuthCode;
-            };
-            auth.AccessTokenReceived += (sender, args) =>
-            {
-                Output.Text += "Access Token: " + args.Token;
-            };
+            var auth = new WebAuthentication();
+            auth.AuthCodeReceived += (sender, args) => WriteLine("Auth Code: " + args.AuthCode);
+            auth.AccessTokenReceived += (sender, args) => WriteLine("Access Token: " + args.Token);
             try
             {
-                await auth.GetTokenAsync("1234","1234567890abcdefghijklmnopq");
+                await auth.GetTokenAsync(CLIENT_ID, CLIENT_SECRET, CALLBACK_URI);
             }
             catch (Exception ex)
             {
-                Output.Text += ex.Message;
+                WriteLine(ex.Message);
             }
 
             // You can either use the StravaClient or 'single' clients like the ActivityClient.
@@ -58,12 +60,17 @@ namespace StravaWpTest
             try
             {
                 AthleteSummary a = await client.Athletes.GetAthleteAsync();
-                Output.Text = string.Format("{0} {1}", a.FirstName, a.LastName);
+                WriteLine(string.Format("{0} {1}", a.FirstName, a.LastName));
             }
             catch (Exception ex)
             {
-                Output.Text = ex.Message;
-            }            
+                WriteLine(ex.Message);
+            }
+        }
+
+        private void WriteLine(string text)
+        {
+            Output.Text += "\n\r" + text;
         }
     }
 }
